@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+<!ENTITY RFC2119 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml">
+<!ENTITY RFC7950 SYSTEM "http://xml.resource.org/public/rfc/bibxml/reference.RFC.7950.xml">
+]>
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+
+<rfc category="std" docName="draft-bertz-netmod-commonaugment-00" ipr="pre5378Trust200902">
+ <front>
+   <title>YANG extension for Common Augmentations</title>
+
+   <author fullname="Lyle Bertz" initials="L." surname="Bertz">
+     <organization>Sprint</organization>
+     <address>
+       <postal>
+         <street>6220 Sprint Parkway</street>
+         <city>Overland Park</city>
+         <region>KS</region>
+         <code>66251</code>
+         <country>United States</country>
+       </postal>
+       <email>lylebe551144@gmail.com</email>
+     </address>
+   </author>
+
+   <date year="2017" />
+
+   <area>Operations and Management Area</area>
+
+   <workgroup>NETCONF Data Modeling Language</workgroup>
+
+   <keyword>netconf</keyword>
+   <keyword>augments</keyword>
+   <keyword>yang</keyword>
+   <abstract>
+<t>
+     This document defines a YANG extension to convey common
+     schema augmentations.
+</t>
+   </abstract>
+ </front>
+
+ <middle>
+   <section title="Introduction">
+     <t>This document provides a mechanism for the specification of
+     an augmentation at multiple locations of a YANG schema using
+     the extension statement as defined in Section 7.15 of <xref target="RFC7950"/>.</t>
+     <t>YANG extensions commonly add one augmentation to a common
+     structure.  <xref target="fig1"> shows a small module and another
+     that will be used to extend it.</t>
+     <t>
+        <figure anchor="fig1"
+                  title="Reference Modules">
+            <artwork align="center"><![CDATA[
+
+            module base {
+              prefix b;
+              ...
+              grouping base_element {
+                  ...
+              }
+
+              rpc my_rpc {
+                input {
+                  uses b:base_element;
+                }
+                output {
+                  uses b:base_element;
+                }
+              }
+
+              rpc my_bestrpc {
+                input {
+                  uses b:base_element;
+                }
+              }
+            }
+
+            module newstuff {
+              grouping new_things {
+                ...
+              }
+            }
+
+              ]]></artwork>
+            <postamble></postamble>
+          </figure>
+    </t>
+    <t>When extending my_rpc in the base module by adding new_things to
+      the base element, one must use two augment statements.  If the author
+      of the newstuff module wishes to extend base_element then they must
+      write an augment statement for every schema location it which it appears.
+    </t>
+    <t>An extension with the key word "also-augments" is proposed that allows
+      one augment statement to be used for augmentations.
+    </t>
+    <t><xref target="fig2"/> shows the traditional and common augment examples.</t>
+    <t>
+        <figure anchor="fig2"
+                  title="Augment Options">
+            <artwork align="center"><![CDATA[
+
+ module old_way {
+   import base { prefix base_module; }
+   import newstuff { prefix new_module; }
+   augment "/base_module:my_rpc/base_element/input" {
+     uses new_module:new_things;
+   }
+   augment "/base_module:my_rpc/base_element/output" {
+     uses new_module:new_things;
+   }
+   augment "/base_module:my_bestrpc/base_element/input" {
+     uses new_module:new_things;
+   }
+ }
+
+  module new_way {
+    import base { prefix base_module; }
+    import newstuff { prefix new_module; }
+    import commonaugment { prefix c; }
+
+    augment "/base_module:my_rpc/base_element/input" {
+      uses new_module:new_things;
+
+      c:also-augments "/base_module:my_rpc/base_element/output";
+      c:also-augments "/base_module:my_bestrpc/base_element/input";
+    }
+  }
+
+              ]]></artwork>
+            <postamble></postamble>
+          </figure>
+    </t>
+    <t>The also-augments statement takes a single argument that is the same
+    one defined for the augment statement <xref target="RFC7950"/>.</t>
+    <t>This has two purposes:
+      <list>
+        <t>Reduces the amount of YANG written when common augmentations are invovled.</t>
+        <t>Provides a hint to the tools that translate YANG to code that a common augmentation
+        exists.</t>
+      </list>
+    </t>
+    <t>The importance of the second benefit for is significant as it permits them to leverage any
+       common structure or inheritence functions.</t>
+   </section>
+     <section title="Requirements Language">
+       <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+       "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+       document are to be interpreted as described in <xref
+       target="RFC2119">RFC 2119</xref>.</t>
+     </section>
+<section title="Overview" anchor="overview">
+  <t>This module defines only the also-augmennts extension.  This
+    extension is ONLY meaningful as a child of an augment statement and
+    is otherwise ignored.  It is semantically equivalent to writing an
+    augment statement whose target node is the argument of the also-augment
+    node.  This is shown in <xref target="fig3"/>.
+  </t>
+  <t>
+        <figure anchor="fig3"
+                  title="Statement Equivalence of also-augments">
+            <artwork align="center"><![CDATA[
+  augment "/base_module:my_rpc/base_element/input" {
+    uses new_module:new_things;
+  }
+  augment "/base_module:my_rpc/base_element/output" {
+    uses new_module:new_things;
+  }
+
+  ... semantically equivalent version below ...
+
+  augment "/base_module:my_rpc/base_element/input" {
+    uses new_module:new_things;
+
+    c:also-augments "/base_module:my_rpc/base_element/output";
+  }
+              ]]></artwork>
+            <postamble></postamble>
+          </figure>
+  </t>
+  <t>Multiple also-augments statements MAY appear in a single augment statement.</t>
+  <t>This statement MAY appear in a module that is intended to be backwards compatible
+  as shown in <xref target="fig4"/>. In such cases, it is used as a hint to readers and
+  compilation software that the augmentations are intended to be the same augmentation
+  at multiple schema tree locations.</t>
+  <t>
+        <figure anchor="fig4"
+                  title="Backwards compatible usage of also-augment">
+            <artwork align="center"><![CDATA[
+  augment "/base_module:my_rpc/base_element/input" {
+    uses new_module:new_things;
+    c:also-augments "/base_module:my_rpc/base_element/output";
+  }
+  augment "/base_module:my_rpc/base_element/output" {
+    uses new_module:new_things;
+  }
+              ]]></artwork>
+            <postamble></postamble>
+          </figure>
+  </t>
+</section>
+<section anchor="definitions" title="Module Definition">
+<t>This section contains the module definition.</t>
+  <figure>
+          <artwork><![CDATA[
+<CODE BEGINS> file "commonaugment@2017-03-04.yang"
+module commonaugment {
+    yang-version 1.1;
+    namespace "urn:ietf:params:xml:ns:yang:commonaug";
+    prefix commonaug;
+
+    organization
+       "IETF NETMOD (NETCONF Data Modeling Language) Working Group";
+
+    contact
+       "WG Web:   <http://tools.ietf.org/wg/netmod/>
+        WG List:  <mailto:netmod@ietf.org>
+
+        WG Chair: Lou Berger
+                  <mailto:lberger@labn.net>
+
+        WG Chair: Kent Watsen
+                  <mailto:kwatsen@juniper.net>
+
+        Editor:   Lyle Bertz
+                  <mailto:lyleb551144@gmail.com>";
+
+    description
+    "This module contains YANG definition for
+     common augments.
+
+     Copyright (c) 2016 IETF Trust and the persons identified as the
+     document authors. All rights reserved.
+
+     This document is subject to BCP 78 and the IETF Trust's Legal
+     Provisions Relating to IETF Documents
+     (http://trustee.ietf.org/license-info) in effect on the date of
+     publication of this document. Please review these documents
+     carefully, as they describe your rights and restrictions with
+     respect to this document. Code Components extracted from this
+     document must include Simplified BSD License text as described
+     in Section 4.e of the Trust Legal Provisions and are provided
+     without warranty as described in the Simplified BSD License.";
+
+    revision 2017-03-04 {
+        description "Initial Revision.";
+        reference "draft-bertz-netmod-commonaugment-00";
+    }
+
+    extension also-augments {
+      description
+        "The argument is a string that identifies a node in the
+        schema tree and is the same argument that is defined for
+        the YANG argument statement";
+      argument "target-node";
+    }
+}
+<CODE ENDS>]]></artwork>
+        </figure>
+</section>
+   <section anchor="IANA" title="IANA Considerations">
+
+  <t>This document registers six URIs in the "IETF XML Registry"
+   <xref target="RFC3688"/>.  Following the format in RFC 3688, the following
+   registrations have been made.</t>
+
+  <t><figure><artwork>
+   URI: urn:ietf:params:xml:ns:yang:commonaug
+   Registrant Contact: The NETMOD WG of the IETF.
+   XML: N/A, the requested URI is an XML namespace.</artwork></figure></t>
+
+  <t>This document registers the following YANG module in the "YANG
+    Module Names" registry [RFC7950].</t>
+
+  <t><figure><artwork>
+        name:         ietf-dmm-fpc
+        namespace:    urn:ietf:params:xml:ns:yang:commonaug
+        prefix:       commonaug
+        reference:    TBD1
+  </artwork></figure></t>
+
+</section>
+   <section anchor="Security" title="Security Considerations">
+<t>
+   This document provides an alternative mechanism to express augmentations
+   that can exist in a YANG module.  It does not provide new informaiton
+   elements to the module but does provide a hint as to the commonality of
+   a set of augment statements.  This, however, SHOULD have already been
+   described in the module's definition or specification.  Thus, the use
+   of this statement does not yield new information.
+</t>
+   </section>
+ </middle>
+ <back>
+   <references title="Normative References">
+     &RFC2119;
+     &RFC7950;
+   </references>
+   <references title="Informative References">
+    &RFC3688;
+   </references>
+ </back>
+</rfc>
