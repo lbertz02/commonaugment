@@ -1,6 +1,6 @@
-module commonaugment {
+module ietf-commonaugment {
     yang-version 1.1;
-    namespace "urn:ietf:params:xml:ns:yang:commonaug";
+    namespace "urn:ietf:params:xml:ns:yang:commonaugment";
     prefix commonaug;
 
     organization
@@ -42,10 +42,10 @@ module commonaugment {
     }
 
     extension also-augments {
+      argument "target-node";
       description
         "The argument is a string that identifies a node in the
         schema tree and is the same argument that is defined for
         the YANG argument statement";
-      argument "target-node";
     }
 }
